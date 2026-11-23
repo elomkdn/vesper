@@ -28,8 +28,9 @@
       ],
       "sources": [
         {
-          "type": "dir",
-          "path": ".."
+          "type": "git",
+          "url": "https://github.com/elomkdn/vesper.git",
+          "commit": "4c4c0079b2b6eb2de80834a4f7a07eea66e56061"
         }
       ]
     }
