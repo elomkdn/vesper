@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -15,7 +14,7 @@ from gi.repository import Adw, GLib, Gtk
 from luma_appkit import (
     ActionCenter, AppWindow, BarAction, BarChip, Command, CommandGroup, CommandRegistry, CornerPill,
     DetailsPane, EmptyState, FactRow, IconOnlyButton, Island, PanelChoices, PanelField, PanelHeading, PanelRow, SPACER, Toast,
-    ToastHost, lumaui_tokens, panel_list,
+    ToastHost, panel_list,
 )
 try:
     from luma_appkit import Sparkline
@@ -72,7 +71,7 @@ class VesperWindow(AppWindow):
         self._scrub_pending = False
         self._night_for = None
         self._night_jumps = {}
-        commands = CommandRegistry((
+        groups = (
             CommandGroup("", (
                 Command("sky.now", "Back to now", self.back_to_now, "rotate-ccw", shortcut=("", "N")),
                 Command("sky.tonight", "Tonight", self.open_tonight, "moon", shortcut=("", "T")),
@@ -82,7 +81,13 @@ class VesperWindow(AppWindow):
             )),
             self._view_group(),
             CommandGroup("", (Command("sky.quit", "Quit Vesper", self.close, "log-out", shortcut=("Ctrl", "Q")),)),
-        ))
+        )
+        commands = CommandRegistry(groups)
+        # The single-letter keys (N, T, H, C, L, M, K), as LumaUI registers them.
+        self._letter_keys = [(command.id.replace(".", "-"), "".join(command.shortcut))
+                             for group in groups for command in group.commands
+                             if command.shortcut and not command.shortcut[0]]
+        self._letters_on = True
         super().__init__(application=application, app_id=APP_ID, title="Vesper", icon_name=APP_ID,
                          commands=commands, default_width=1180, default_height=760,
                          minimum_width=360, minimum_height=420)
@@ -139,6 +144,7 @@ class VesperWindow(AppWindow):
         self.center = ActionCenter()
         self.center.attach(self.host)
         self.center.connect("panel-changed", self._panel_changed)
+        self.connect("notify::focus-widget", self._focus_moved)
         self.view.reserved = self._reserved_areas
         style.install()
 
@@ -157,6 +163,9 @@ class VesperWindow(AppWindow):
             self.offset = datetime.fromisoformat(os.environ["VESPER_TIME"]) - self.now()
         self._show_place()
         self._live_source = GLib.timeout_add_seconds(30, self._tick)
+        # Quiet at rest: while the window is hidden nothing is drawn, so the live sky need not keep time.
+        if self.find_property("suspended") is not None:
+            self.connect("notify::suspended", self._suspended_changed)
 
     # ── time and place ────────────────────────────────────────────────
 
@@ -168,7 +177,17 @@ class VesperWindow(AppWindow):
         return datetime.now(timezone.utc)
 
     def when(self) -> datetime:
-        return self.now() + self.offset
+        return self.now() if self.pinned is None else self.pinned
+
+    # The moment shown is now, or a moment someone chose, which then stays put as the clock runs on.
+    @property
+    def offset(self) -> timedelta:
+        pinned = getattr(self, "pinned", None)
+        return timedelta(0) if pinned is None else pinned - self.now()
+
+    @offset.setter
+    def offset(self, value: timedelta) -> None:
+        self.pinned = None if value == timedelta(0) else self.now() + value
 
     def _show_place(self) -> None:
         if self.place is None:
@@ -187,7 +206,10 @@ class VesperWindow(AppWindow):
         moment = sky.moment(now, self.place.latitude, self.place.longitude)
         if moment.sun.altitude <= -10:
             return
-        dark = sky.next_dark(now, self.place.latitude, self.place.longitude) + timedelta(minutes=40)
+        dark = sky.next_dark(now, self.place.latitude, self.place.longitude)
+        if dark is None:        # the midnight sun: it doesn't get dark, so the sky stays on now
+            return
+        dark += timedelta(minutes=40)
         self.offset = dark - now
         words = dark.astimezone(self.zone).strftime("%H:%M")
         GLib.idle_add(lambda: Toast.show(self.host, f"Moved to {words}, once it's dark", kind="done",
@@ -222,6 +244,18 @@ class VesperWindow(AppWindow):
             self._bar_stale = False
             GLib.idle_add(lambda: self.show_bar() and False)
 
+    def _focus_moved(self, *_args) -> None:
+        """GTK hears application shortcuts before the focused widget, so a bare-letter shortcut would
+        swallow that letter in Find or the city search ("saturn" would open Tonight at its "t").
+        While a field has focus the letter keys step aside; Ctrl shortcuts stay."""
+        typing = isinstance(self.get_focus(), Gtk.Editable)
+        application = self.get_application()
+        if application is None or typing != self._letters_on:
+            return
+        self._letters_on = not typing
+        for name, key in self._letter_keys:
+            application.set_accels_for_action(f"app.{name}", [] if typing else [key])
+
     def _reserved_areas(self) -> list:
         """What floats over the sky, in the sky's coordinates, so its names keep clear of it."""
         areas = []
@@ -243,6 +277,15 @@ class VesperWindow(AppWindow):
         if sky.day_start(when, self.zone) == sky.day_start(now + timedelta(hours=6), self.zone):
             return local.strftime("%H:%M")
         return local.strftime("%a %H:%M")
+
+    def _suspended_changed(self, *_args) -> None:
+        if self.get_property("suspended"):
+            if self._live_source:
+                GLib.source_remove(self._live_source)
+                self._live_source = 0
+        elif not self._live_source:
+            self._live_source = GLib.timeout_add_seconds(30, self._tick)
+            self._tick()        # catch up with the sky at once
 
     def _tick(self):
         if self.place is not None and self.offset == timedelta(0) and self.center.grown is None:

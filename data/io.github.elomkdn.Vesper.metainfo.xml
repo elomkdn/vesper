@@ -30,6 +30,18 @@
   <url type="bugtracker">https://github.com/elomkdn/vesper/issues</url>
   <url type="help">https://github.com/elomkdn/vesper#readme</url>
   <url type="vcs-browser">https://github.com/elomkdn/vesper</url>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>touch</control>
+  </supports>
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+  <branding>
+    <color type="primary" scheme_preference="light">#b9a3ff</color>
+    <color type="primary" scheme_preference="dark">#1b137c</color>
+  </branding>
   <screenshots>
     <screenshot type="default">
       <caption>The sky above you, with the Moon's details</caption>
@@ -56,6 +68,15 @@
     <category>Education</category>
     <category>Science</category>
   </categories>
+  <keywords>
+    <keyword>stars</keyword>
+    <keyword>planets</keyword>
+    <keyword>moon</keyword>
+    <keyword>constellations</keyword>
+    <keyword>night sky</keyword>
+    <keyword>astronomy</keyword>
+    <keyword>planetarium</keyword>
+  </keywords>
   <custom>
     <value key="org.projectluma.ApplicationContract">0.2</value>
   </custom>

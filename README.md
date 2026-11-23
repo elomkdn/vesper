@@ -44,7 +44,14 @@ flatpak-builder --user --install --install-deps-from=luma build-dir flatpak/io.g
 ## Data
 
 - Stars, constellation figures and the Milky Way: [d3-celestial](https://github.com/ofrohn/d3-celestial)
-  by Olaf Frohn (BSD-3-Clause), compacted by `tools/build_catalog.py`
+  by Olaf Frohn (BSD-3-Clause), compacted by `tools/build_catalog.py`. d3-celestial draws on:
+  - stars: XHIP, an extended Hipparcos compilation (Anderson & Francis 2012,
+    [VizieR V/137D](https://cdsarc.cds.unistra.fr/viz-bin/cat/V/137D));
+  - star names and designations: the HD-DM-GC-HR-HIP-Bayer-Flamsteed cross index (Kostjuk 2002,
+    VizieR IV/27A) and the FK5-SAO-HD common name cross index (Smith 1996, VizieR IV/22);
+  - constellations: the IAU, with line placement by Olaf Frohn;
+  - the Milky Way: the Milky Way Outline Catalog by José R. Vieira (2000), contributed to the
+    free catalog library of Sky Map Pro
 - Planet, Moon and Sun positions: [Astronomy Engine](https://github.com/cosinekitty/astronomy)
   by Don Cross (MIT), vendored as `src/vesper/astronomy.py`
 - Cities: [GeoNames](https://www.geonames.org) (CC BY 4.0), built by `tools/build_cities.py`

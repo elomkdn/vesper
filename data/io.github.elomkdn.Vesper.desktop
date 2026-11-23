@@ -6,5 +6,5 @@ Exec=run-app
 Icon=io.github.elomkdn.Vesper
 Terminal=false
 DBusActivatable=false
-Categories=Education;Science;Astronomy;
+Categories=Science;Astronomy;
 Keywords=stars;planets;moon;constellations;night;sky;astronomy;

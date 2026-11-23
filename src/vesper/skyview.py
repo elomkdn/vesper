@@ -15,7 +15,14 @@ import cairo
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("PangoCairo", "1.0")
+gi.require_version("Graphene", "1.0")
 from gi.repository import GLib, GObject, Graphene, Gtk, Pango, PangoCairo
+
+try:
+    gi.require_version("Adw", "1")
+    from gi.repository import Adw
+except (ValueError, ImportError):  # pragma: no cover - outside a libadwaita session
+    Adw = None
 
 from . import sky
 
@@ -116,6 +123,12 @@ class SkyView(Gtk.Widget):
         self.add_controller(scroll)
         keys = Gtk.EventControllerKey()
         keys.connect("key-pressed", self._key)
+        self._high_contrast = _read_high_contrast()
+        if Adw is not None:     # high contrast changes how the sky is painted, live
+            try:
+                Adw.StyleManager.get_default().connect("notify::high-contrast", self._contrast_changed)
+            except Exception:  # noqa: BLE001 - no display, as in previews
+                pass
         self.add_controller(keys)
 
     # ── state ─────────────────────────────────────────────────────────
@@ -272,7 +285,21 @@ class SkyView(Gtk.Widget):
             value = self.get_color()
         return (value.red, value.green, value.blue, value.alpha)
 
+    @property
+    def high_contrast(self) -> bool:
+        """In high contrast the sky is plain black under white stars and lines: no glow, no gradient.
+
+        (Luma's high-contrast tokens turn every sky colour into the ink, which would paint the sky white.)
+        """
+        return self._high_contrast
+
+    def _contrast_changed(self, *_args) -> None:
+        self._high_contrast = _read_high_contrast()
+        self.queue_draw()
+
     def _sky_stops(self, sun_altitude: float):
+        if self.high_contrast:
+            return [(0.0, 0.0, 0.0, 1.0)] * 3
         def triple(name):
             return [self._color(f"luma_weather_sky_{name}_{i}", "lumaui_shade_night") for i in (1, 2, 3)]
         night, dusk, day = triple("night"), triple("dusk"), triple("day")
@@ -314,7 +341,7 @@ class SkyView(Gtk.Widget):
 
     def _draw_sky(self, cr, frame, width, height):
         limit, visibility = self._seeing()
-        if visibility > 0.05 and self.show_milky_way:
+        if visibility > 0.05 and self.show_milky_way and not self.high_contrast:
             self._draw_milky_way(cr, frame, width, height, self._color("luma_sky_card_ink"), visibility)
         self._draw_main(cr, frame, width, height, limit, visibility)
 
@@ -460,12 +487,13 @@ class SkyView(Gtk.Widget):
                         cr.line_to(pw[0], pw[1])
                     else:
                         low.append((pu[0], pu[1], pw[0], pw[1]))
-        cr.set_source_rgba(r, g, b, 0.12 * visibility)
+        strong = self.high_contrast
+        cr.set_source_rgba(r, g, b, (0.5 if strong else 0.12) * visibility)
         cr.stroke()
         for x1, y1, x2, y2 in low:
             cr.move_to(x1, y1)
             cr.line_to(x2, y2)
-        cr.set_source_rgba(r, g, b, 0.05 * visibility)
+        cr.set_source_rgba(r, g, b, (0.25 if strong else 0.05) * visibility)
         cr.stroke()
 
     def _draw_stars(self, cr, frame, limit, targets):
@@ -629,6 +657,13 @@ class SkyView(Gtk.Widget):
         if center is None:      # looking straight along the horizon: it is a line
             return
         cx, cy = center
+        if self.high_contrast:      # a crisp line, not a glow
+            ink = self._color("luma_sky_card_ink")
+            cr.set_source_rgba(*ink[:3], 0.9)
+            cr.set_line_width(1.5)
+            cr.arc(cx, cy, radius, 0, 2 * math.pi)
+            cr.stroke()
+            return
         stops = self._sky_stops(self.moment.sun.altitude)
         glow = _mix(stops[2][:3], self._color("luma_sky_card_ink")[:3], 0.18)
         up = max(70.0, height * 0.26)        # how high the glow climbs
@@ -655,18 +690,6 @@ class SkyView(Gtk.Widget):
         # A grain of a colour step or two over the gradients, so smooth twilight shows no bands.
         cr.set_source(_dither())
         cr.paint()
-
-    def _draw_cardinals(self, cr, frame, ink, width, height):
-        for index, name in enumerate(sky.SHORT_DIRECTIONS):
-            p = self._project(sky.horizontal(index * 45, 0), frame)
-            if p is None:
-                continue
-            x, y, _k = p
-            if not (-20 < x < width + 20 and -20 < y < height + 20):
-                continue
-            major = index % 2 == 0
-            self._text(cr, name, x, y + 8, ink, role="label" if major else "caption",
-                       alpha=0.95 if major else 0.6, align="top", weight=Pango.Weight.SEMIBOLD if major else None)
 
     def _draw_labels(self, cr, frame, ink, limit, width, height):
         # Most important first; a label that would overlap one already placed, or what floats over
@@ -695,15 +718,18 @@ class SkyView(Gtk.Widget):
             if magnitude > min(name_limit, limit - 0.5):
                 break
             v = self._stars_h[index]
-            if v[2] < 0.03 or magnitude + extinction(v[2]) > min(name_limit, limit - 0.5):
+            if v[2] < 0.03 or magnitude + extinction(v[2]) > limit - 0.5:
                 continue
             p = self._project(v, frame)
             if p is None or not (0 < p[0] < width and 0 < p[1] < height):
                 continue
-            self._text(cr, label["n"], p[0] + 7, p[1] - 7, ink, role="caption", alpha=0.7, align="left",
-                       placed=placed)
+            # Above and to the right, or the first other side that is free (under the compass, say).
+            for dx, dy, align in ((7, -7, "left"), (7, 7, "left"), (-7, 7, "right"), (-7, -7, "right")):
+                if self._text(cr, label["n"], p[0] + dx, p[1] + dy, ink, role="caption",
+                              alpha=1.0 if self.high_contrast else 0.7, align=align, placed=placed):
+                    break
         if self.show_figures:
-            for key, entry in self.catalog.constellations.items():
+            for entry in self.catalog.constellations.values():
                 if entry["rank"] > (1 if self.fov > 100 else 2 if self.fov > 50 else 3):
                     continue
                 v = self.moment.to_horizontal(sky.unit(entry["ra"], entry["dec"]))
@@ -712,7 +738,7 @@ class SkyView(Gtk.Widget):
                 p = self._project(v, frame)
                 if p is None or not (0 < p[0] < width and 0 < p[1] < height):
                     continue
-                self._text(cr, entry["name"], p[0], p[1], ink, role="caption", alpha=0.34, align="center",
+                self._text(cr, entry["name"], p[0], p[1], ink, role="caption", alpha=1.0 if self.high_contrast else 0.55, align="center",
                            placed=placed)
 
     def _draw_selection(self, cr, frame):
@@ -832,6 +858,8 @@ class SkyView(Gtk.Widget):
             self.zoom_by(1 / 1.25)
         elif keyval in (Gdk.KEY_minus, Gdk.KEY_KP_Subtract):
             self.zoom_by(1.25)
+        elif keyval == Gdk.KEY_Escape and self.selection is not None:
+            self.emit("picked", None)
         else:
             return False
         return True
@@ -857,6 +885,13 @@ def _circle(a, b, c):
 
 # How much each of the Milky Way's five outline levels glows: steep, so the core reads and the edges fade.
 BRIGHTNESS = (0, 0.45, 1.26, 2.32, 3.58, 5.0)
+
+
+def _read_high_contrast() -> bool:
+    try:
+        return bool(Adw and Adw.StyleManager.get_default().get_high_contrast())
+    except Exception:  # noqa: BLE001 - no display, as in previews
+        return False
 
 
 _DITHER = []

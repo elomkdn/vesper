@@ -7,7 +7,10 @@ to a PNG, then quits.
 """
 import os
 
-from gi.repository import GLib, Graphene, Gtk
+import gi
+gi.require_version("Gtk", "4.0")
+gi.require_version("Graphene", "1.0")
+from gi.repository import GLib, Graphene, Gtk  # noqa: E402
 
 
 def screenshot(window, path):

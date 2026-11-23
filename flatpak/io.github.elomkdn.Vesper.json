@@ -18,6 +18,7 @@
         "install -Dm755 run-app /app/bin/run-app",
         "install -Dm644 src/main.py /app/share/io.github.elomkdn.Vesper/main.py",
         "install -Dm644 -t /app/share/io.github.elomkdn.Vesper/vesper src/vesper/*.py",
+        "python3 -m compileall -q --invalidation-mode unchecked-hash /app/share/io.github.elomkdn.Vesper",
         "install -Dm644 data/sky.json /app/share/vesper/sky.json",
         "install -Dm644 data/cities.json /app/share/vesper/cities.json",
         "install -Dm644 data/io.github.elomkdn.Vesper.desktop /app/share/applications/io.github.elomkdn.Vesper.desktop",

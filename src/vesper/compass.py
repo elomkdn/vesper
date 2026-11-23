@@ -15,6 +15,7 @@ import cairo
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("PangoCairo", "1.0")
+gi.require_version("Graphene", "1.0")
 from gi.repository import Graphene, Gtk, Pango, PangoCairo
 
 from . import sky

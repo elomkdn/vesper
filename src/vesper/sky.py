@@ -194,27 +194,54 @@ def _search(body, observer, direction, start, days=1.2, altitude=None):
     return to_datetime(found) if found else None
 
 
-def night_window(when: datetime, latitude: float, longitude: float, zone=None) -> tuple[datetime, datetime]:
-    """The coming (or current) night: sunset to sunrise, around `when`."""
-    observer = ae.Observer(latitude, longitude, 0)
+def _night_noon(when: datetime, zone=None) -> datetime:
+    """The local noon that the night around `when` follows (until six in the morning, yesterday's)."""
     noon = when.astimezone(zone).replace(hour=12, minute=0, second=0, microsecond=0)
     if when.astimezone(zone).hour < 6:
         noon -= timedelta(days=1)
-    start = to_time(noon)
-    sunset = _search(ae.Body.Sun, observer, ae.Direction.Set, start) or noon + timedelta(hours=7)
-    sunrise = _search(ae.Body.Sun, observer, ae.Direction.Rise, to_time(sunset)) or sunset + timedelta(hours=11)
-    return sunset, sunrise
+    return noon
 
 
-def next_dark(when: datetime, latitude: float, longitude: float) -> datetime:
-    """The next moment the sky is properly dark: night, or deep twilight where nights stay light."""
+def night_window(when: datetime, latitude: float, longitude: float, zone=None) -> tuple[datetime, datetime]:
+    """The coming (or current) night: sunset to sunrise, around `when`.
+
+    Where the Sun neither sets nor rises that day (the midnight sun, the polar night) there is no
+    sunset to give: the night is then the evening to the morning, 18:00 to 06:00 local time, and
+    `polar()` says which it is, so nothing presents those hours as a sunset and a sunrise.
+    """
+    observer = ae.Observer(latitude, longitude, 0)
+    noon = _night_noon(when, zone)
+    sunset = _search(ae.Body.Sun, observer, ae.Direction.Set, to_time(noon))
+    sunrise = _search(ae.Body.Sun, observer, ae.Direction.Rise, to_time(sunset)) if sunset else None
+    if sunset and sunrise:
+        return sunset, sunrise
+    evening = noon + timedelta(hours=6)
+    return evening, evening + timedelta(hours=12)
+
+
+def polar(when: datetime, latitude: float, longitude: float, zone=None) -> str | None:
+    """"day" under the midnight sun, "night" in the polar night, else None: for the night around `when`."""
+    observer = ae.Observer(latitude, longitude, 0)
+    noon = _night_noon(when, zone)
+    if _search(ae.Body.Sun, observer, ae.Direction.Set, to_time(noon)):
+        return None
+    time = to_time(noon)
+    altitude = ae.Horizon(time, observer, *_radec(ae.Body.Sun, time, observer), ae.Refraction.Normal).altitude
+    return "day" if altitude > -0.833 else "night"
+
+
+def next_dark(when: datetime, latitude: float, longitude: float) -> datetime | None:
+    """The next moment the sky is properly dark: night, or deep twilight where nights stay light.
+
+    None under the midnight sun, when it doesn't get dark at all.
+    """
     observer = ae.Observer(latitude, longitude, 0)
     start = to_time(when)
     for altitude in (-18, -12, -6):
         found = _search(ae.Body.Sun, observer, ae.Direction.Set, start, 1.2, altitude)
         if found:
             return found
-    return when + timedelta(hours=12)
+    return None
 
 
 def tonight(when: datetime, latitude: float, longitude: float, zone=None) -> list[Highlight]:
@@ -224,13 +251,25 @@ def tonight(when: datetime, latitude: float, longitude: float, zone=None) -> lis
     observer = ae.Observer(latitude, longitude, 0)
     sunset, sunrise = night_window(when, latitude, longitude, zone)
     found = []
-    dark = _search(ae.Body.Sun, observer, ae.Direction.Set, to_time(sunset), 1, -18)
-    if dark and dark < sunrise:
-        found.append(Highlight("dark", "Fully dark", f"Sunset {clock(sunset)} · sunrise {clock(sunrise)}",
-                               "sunset", dark, clock(dark)))
+    state = polar(when, latitude, longitude, zone)
+    if state == "day":
+        found.append(Highlight("dark", "Midnight sun", "The Sun stays up all night", "sun", None, ""))
+    elif state == "night":
+        noon = _night_noon(when, zone)
+        dark = _search(ae.Body.Sun, observer, ae.Direction.Set, to_time(noon), 1, -18)
+        if dark:
+            found.append(Highlight("dark", "Fully dark", "The Sun doesn't rise today", "moon", dark,
+                                   clock(dark)))
+        else:
+            found.append(Highlight("dark", "Dark all day", "The Sun doesn't rise today", "moon", None, ""))
     else:
-        found.append(Highlight("dark", "Sunset", f"Never fully dark tonight · sunrise {clock(sunrise)}",
-                               "sunset", sunset, clock(sunset)))
+        dark = _search(ae.Body.Sun, observer, ae.Direction.Set, to_time(sunset), 1, -18)
+        if dark and dark < sunrise:
+            found.append(Highlight("dark", "Fully dark", f"Sunset {clock(sunset)} · sunrise {clock(sunrise)}",
+                                   "sunset", dark, clock(dark)))
+        else:
+            found.append(Highlight("dark", "Sunset", f"Never fully dark tonight · sunrise {clock(sunrise)}",
+                                   "sunset", sunset, clock(sunset)))
 
     samples = []
     step = timedelta(minutes=15)
@@ -252,7 +291,7 @@ def tonight(when: datetime, latitude: float, longitude: float, zone=None) -> lis
                                "moon", None, ""))
 
     for body, name in PLANETS:
-        if name not in NAKED_EYE:
+        if name not in NAKED_EYE or state == "day":      # under the midnight sun it's too bright for them
             continue
         result = _best(observer, body, samples, minimum=8)
         if result is None:
