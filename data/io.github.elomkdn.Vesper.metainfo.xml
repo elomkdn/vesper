@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.elomkdn.Vesper</id>
+  <name>Vesper</name>
+  <summary>See the sky above you, right now</summary>
+  <description>
+    <p>
+      Vesper shows the sky over where you are: the stars in their true colours, the
+      constellations, the Moon in its real phase, the planets and the Milky Way, exactly as they
+      stand at this moment.
+    </p>
+    <ul>
+      <li>Drag to look around, pinch or scroll to zoom, tap anything to learn what it is</li>
+      <li>Tap the time and turn the hour and minute wheels to see the sky at any moment</li>
+      <li>Tonight lists what is worth looking at, and when</li>
+      <li>Find any planet, named star or constellation</li>
+      <li>Use your location, or pick from 34,000 cities</li>
+    </ul>
+    <p>
+      Everything is worked out on your device. Vesper needs no account and no connection, and it
+      stays dark so it never spoils your eyes for the night.
+    </p>
+  </description>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <developer id="io.github.elomkdn">
+    <name>elomkdn</name>
+  </developer>
+  <url type="homepage">https://github.com/elomkdn/vesper</url>
+  <url type="bugtracker">https://github.com/elomkdn/vesper/issues</url>
+  <url type="help">https://github.com/elomkdn/vesper#readme</url>
+  <url type="vcs-browser">https://github.com/elomkdn/vesper</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>The sky above you, with the Moon's details</caption>
+      <image type="source" width="1280" height="800">https://raw.githubusercontent.com/elomkdn/vesper/main/data/screenshots/sky.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Turn the wheels to see the sky at any time</caption>
+      <image type="source" width="1280" height="800">https://raw.githubusercontent.com/elomkdn/vesper/main/data/screenshots/time.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>What is worth seeing tonight, and when</caption>
+      <image type="source" width="1280" height="800">https://raw.githubusercontent.com/elomkdn/vesper/main/data/screenshots/tonight.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The same app on a phone</caption>
+      <image type="source" width="390" height="844">https://raw.githubusercontent.com/elomkdn/vesper/main/data/screenshots/phone.png</image>
+    </screenshot>
+  </screenshots>
+  <launchable type="desktop-id">io.github.elomkdn.Vesper.desktop</launchable>
+  <provides>
+    <binary>run-app</binary>
+  </provides>
+  <categories>
+    <category>Education</category>
+    <category>Science</category>
+  </categories>
+  <custom>
+    <value key="org.projectluma.ApplicationContract">0.2</value>
+  </custom>
+  <releases>
+    <release version="0.1.0" date="2026-11-23">
+      <description>
+        <p>The first release.</p>
+        <ul>
+          <li>The live sky: about 19,000 stars, the constellations, the Milky Way, the planets and the Moon</li>
+          <li>A compass across the top, and the horizon as soft light</li>
+          <li>Time wheels, and Tonight's highlights</li>
+          <li>Your location through the system, or any of 34,000 cities, all offline</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1"/>
+</component>

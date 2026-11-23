@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Vesper
+Comment=See the sky above you, right now
+Exec=run-app
+Icon=io.github.elomkdn.Vesper
+Terminal=false
+DBusActivatable=false
+Categories=Education;Science;Astronomy;
+Keywords=stars;planets;moon;constellations;night;sky;astronomy;

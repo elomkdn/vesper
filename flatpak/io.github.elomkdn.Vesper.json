@@ -1,0 +1,37 @@
+{
+  "id": "io.github.elomkdn.Vesper",
+  "runtime": "org.projectluma.Platform",
+  "runtime-version": "44",
+  "sdk": "org.projectluma.Sdk",
+  "command": "run-app",
+  "finish-args": [
+    "--share=ipc",
+    "--socket=wayland",
+    "--socket=fallback-x11",
+    "--device=dri"
+  ],
+  "modules": [
+    {
+      "name": "vesper",
+      "buildsystem": "simple",
+      "build-commands": [
+        "install -Dm755 run-app /app/bin/run-app",
+        "install -Dm644 src/main.py /app/share/io.github.elomkdn.Vesper/main.py",
+        "install -Dm644 -t /app/share/io.github.elomkdn.Vesper/vesper src/vesper/*.py",
+        "install -Dm644 data/sky.json /app/share/vesper/sky.json",
+        "install -Dm644 data/cities.json /app/share/vesper/cities.json",
+        "install -Dm644 data/io.github.elomkdn.Vesper.desktop /app/share/applications/io.github.elomkdn.Vesper.desktop",
+        "install -Dm644 data/io.github.elomkdn.Vesper.metainfo.xml /app/share/metainfo/io.github.elomkdn.Vesper.metainfo.xml",
+        "install -Dm644 data/io.github.elomkdn.Vesper.svg /app/share/icons/hicolor/scalable/apps/io.github.elomkdn.Vesper.svg",
+        "install -Dm644 -t /app/share/licenses/io.github.elomkdn.Vesper LICENSES/*",
+        "install -Dm644 LICENSE /app/share/licenses/io.github.elomkdn.Vesper/GPL-3.0-or-later.txt"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": ".."
+        }
+      ]
+    }
+  ]
+}
