@@ -3,7 +3,7 @@
 
 APP_WIDTH / APP_HEIGHT size the window, APP_ACTION calls a window method
 (steps joined by "+": "select:body=moon+toggle_details"), and APP_SHOT renders the window
-to a PNG, then quits.
+to a PNG, then quits (APP_SHOT_SCALE renders it at 2x or 3x, as on a denser screen).
 """
 import os
 
@@ -14,13 +14,17 @@ from gi.repository import GLib, Graphene, Gtk  # noqa: E402
 
 
 def screenshot(window, path):
+    """Render the window to a PNG; APP_SHOT_SCALE renders it as a denser screen would (3 for a phone)."""
     width, height = window.get_width(), window.get_height()
+    scale = float(os.environ.get("APP_SHOT_SCALE", "1"))
     snapshot = Gtk.Snapshot()
+    snapshot.scale(scale, scale)
     Gtk.WidgetPaintable.new(window).snapshot(snapshot, width, height)
     node = snapshot.to_node()
     if node is None:
         return
-    texture = window.get_renderer().render_texture(node, Graphene.Rect().init(0, 0, width, height))
+    texture = window.get_renderer().render_texture(
+        node, Graphene.Rect().init(0, 0, round(width * scale), round(height * scale)))
     texture.save_to_png(path)
 
 

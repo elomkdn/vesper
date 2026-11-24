@@ -57,7 +57,7 @@
     </screenshot>
     <screenshot>
       <caption>The same app on a phone</caption>
-      <image type="source" width="390" height="844">https://raw.githubusercontent.com/elomkdn/vesper/main/data/screenshots/phone.png</image>
+      <image type="source" width="1170" height="2532">https://raw.githubusercontent.com/elomkdn/vesper/main/data/screenshots/phone.png</image>
     </screenshot>
   </screenshots>
   <launchable type="desktop-id">io.github.elomkdn.Vesper.desktop</launchable>
